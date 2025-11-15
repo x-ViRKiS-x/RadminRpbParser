@@ -80,70 +80,158 @@ namespace DeepRpbAnalyzer
         private static byte[] RecordsBytes;
         private static string startRecsStr;
 
+
         static void Main(string[] args)
         {
             if (args.Length == 0)
             {
-                Console.WriteLine("Использование: RpbAnalyzer.exe <путь_к_файлу.rpb>");
-                Console.ReadKey();
-                return;
-            }
-
-            string filePath = args[0];
-            if (!File.Exists(filePath))
-            {
-                Console.WriteLine("Файл не найден!");
+                Console.WriteLine("Использование:");
+                Console.WriteLine("  Анализ RPB файла: RpbAnalyzer.exe /t <RadminAddrBook.rpb>");
+                Console.WriteLine("  Convert to JSON: RpbAnalyzer.exe /j <RadminAddrBook.rpb> [output.json]");
+                Console.WriteLine("  Convert to RPB: RpbAnalyzer.exe /r <JsonAddrBook.json> [output.rpb]");
                 Console.ReadKey();
                 return;
             }
 
             try
             {
-                AnalyzeRpb(filePath);
-                GenerateJson("output.json");
+                if (args[0] == "/j" || args[0] == "-j") // Экспорт
+                {
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine("Ошибка: Укажите файл RPB для экспорта");
+                        return;
+                    }
 
-                Console.WriteLine("JSON файл успешно создан: output.json");
+                    string inputFile = args[1];
+                    string outputFile = args.Length > 2 ? args[2] : Path.ChangeExtension(inputFile, ".json");
+                    //outputFile = "output_" + outputFile;
 
+                    if (!File.Exists(inputFile))
+                    {
+                        Console.WriteLine("Файл не найден: " + inputFile);
+                        return;
+                    }
+
+                    ExportToJson(inputFile, outputFile);
+                    Console.WriteLine("Экспорт завершен: " + outputFile);
+                }
+                else if (args[0] == "/r" || args[0] == "-r") // Импорт
+                {
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine("Ошибка: Укажите файл JSON для импорта");
+                        return;
+                    }
+
+                    string inputFile = args[1];
+                    string outputFile = args.Length > 2 ? args[2] : Path.ChangeExtension(inputFile, ".rpb");
+                    //outputFile = "output_" + outputFile;
+
+                    if (!File.Exists(inputFile))
+                    {
+                        Console.WriteLine("Файл не найден: " + inputFile);
+                        return;
+                    }
+
+                    ImportFromJson(inputFile, outputFile);
+                    Console.WriteLine("Импорт завершен: " + outputFile);
+                }
+                else if (args[0] == "/t" || args[0] == "-t") // Простой анализ (Тест rpb)
+                {
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine("Ошибка: Укажите файл RPB для анализа");
+                        return;
+                    }
+
+                    string filePath = args[1];
+                    if (!File.Exists(filePath))
+                    {
+                        Console.WriteLine("Файл не найден: " + filePath);
+                        Console.ReadKey();
+                        return;
+                    }
+
+                    AnalyzeRpb(filePath, true);
+                    //GenerateJson("output.json");
+                    Console.WriteLine("для ");
+                    Console.ReadKey();
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Ошибка: " + ex.Message);
+                Console.ReadKey();
             }
 
-            Console.ReadKey();
+
+            //string filePath = args[0];
+            //if (!File.Exists(filePath))
+            //{
+            //    Console.WriteLine("Файл не найден!");
+            //    Console.ReadKey();
+            //    return;
+            //}
+
+            //try
+            //{
+            //    AnalyzeRpb(filePath);
+            //    GenerateJson("output.json");
+
+            //    Console.WriteLine("JSON файл успешно создан: output.json");
+
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("Ошибка: " + ex.Message);
+            //}
+
+            //Console.ReadKey();
         }
 
-        static void AnalyzeRpb(string filePath)
+        // Экспорт RPB в JSON
+        static void ExportToJson(string inputFile, string outputFile)
+        {
+            AnalyzeRpb(inputFile, false);
+            GenerateJson(outputFile);
+        }
+
+
+
+        static void AnalyzeRpb(string filePath, bool showlog = false)
         {
             using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             using (var br = new BinaryReader(fs))
             {
                 // ---------- Заголовок ----------
                 fs.Seek(0, SeekOrigin.Begin);
-                 version = br.ReadInt32();                   // 0x00  Версия
-                 chksumRecCounts = br.ReadInt32();           // 0x04  Количество записей *3 +1
+                version = br.ReadInt32();                   // 0x00  Версия
+                chksumRecCounts = br.ReadInt32();           // 0x04  Количество записей *3 +1
                 int rbTimestamp = br.ReadInt32();               // 0x08  миллисекунд от последней перезагрузки ОС
-                 recordSize = br.ReadInt32();                // 0x0C  = 0x17FA = 6146    Размер блока записи
-                 startSize = br.ReadInt32();                 // 0x10  = 0x80  = 128      Размер заполнителя
-                 recordCount = br.ReadInt32() + 1;             // 0x14  Кол-во записей
-                 startByte = br.ReadByte();                  // 0x18  Нач байт заполнителя
+                recordSize = br.ReadInt32();                // 0x0C  = 0x17FA = 6138    Размер блока записи
+                startSize = br.ReadInt32();                 // 0x10  = 0x80  = 128      Размер заполнителя
+                recordCount = br.ReadInt32() + 1;             // 0x14  Кол-во записей
+                startByte = br.ReadByte();                  // 0x18  Нач байт заполнителя
                 RecordsBytes = br.ReadBytes(startSize);  // 0х19  Заполнитель, 01 каждый байт на запись
-                 startRecsStr = BitConverter.ToString(RecordsBytes);
-                 savetick = $"{HexToHMS($"0x{rbTimestamp:X8}")}";
+                startRecsStr = BitConverter.ToString(RecordsBytes);
+                savetick = $"{HexToHMS($"0x{rbTimestamp:X8}")}";
 
-                Console.WriteLine("=== Заголовок ===");
-                Console.WriteLine($"0x00 Версия              : {version}");
-                Console.WriteLine($"0x04 Кол-во записей*3+1  : {chksumRecCounts} (0x{chksumRecCounts:X8})");
-                Console.WriteLine($"0x08 Время от ребута ОС  : {savetick} (0x{rbTimestamp:X8})");
-                Console.WriteLine($"0x0C Размер блока записи : {recordSize} (0x{recordSize:X})");
-                Console.WriteLine($"0x10 Размер заполнителя  : {startSize} (0x{startSize:X})");
-                Console.WriteLine($"0x14 Кол-во записей      : {recordCount}");
-                Console.WriteLine($"0x18 Нач байт заполнителя: {startByte}");
-                Console.WriteLine();
-                Console.WriteLine($"0x19 Заполнитель 128байт : {startRecsStr}");
-                Console.WriteLine("Количество записей - 01 каждый следующий байт");
-                Console.WriteLine();
-
+                if (showlog)
+                {
+                    Console.WriteLine("=== Заголовок ===");
+                    Console.WriteLine($"0x00 Версия              : {version}");
+                    Console.WriteLine($"0x04 Кол-во записей*3+1  : {chksumRecCounts} (0x{chksumRecCounts:X8})");
+                    Console.WriteLine($"0x08 Время от ребута ОС  : {savetick} (0x{rbTimestamp:X8})");
+                    Console.WriteLine($"0x0C Размер блока записи : {recordSize} (0x{recordSize:X})");
+                    Console.WriteLine($"0x10 Размер заполнителя  : {startSize} (0x{startSize:X})");
+                    Console.WriteLine($"0x14 Кол-во записей      : {recordCount}");
+                    Console.WriteLine($"0x18 Нач байт заполнителя: {startByte}");
+                    Console.WriteLine();
+                    Console.WriteLine($"0x19 Заполнитель 128байт : {startRecsStr}");
+                    Console.WriteLine("Количество записей - 01 каждый следующий байт");
+                    Console.WriteLine();
+                }
                 // ---------- Данные ----------
                 long dataStart = fs.Position;
                 //long dataStart = 0x19 + (long)startSize;    // начало первой записи (0x18 Нач байт заполнителя + 0x10 Размер заполнителя)
@@ -157,21 +245,25 @@ namespace DeepRpbAnalyzer
                     long recordStart = fs.Position;
                     byte[] record = br.ReadBytes(recordSize);
 
-                    Console.WriteLine($"=== Запись {i + 1} (абс. 0x{recordStart:X}) ============================================================");
 
-                    AnalyzeSpecificAddresses(record);
+                    Console.WriteLine($"=== Запись {i + 1} (абс. 0x{recordStart:X}) ============================================================\n");
+
+                    AnalyzeSpecificAddresses(record, showlog);
                     var rec = ParseRecord(record);
                     allRecords.Add(rec);
 
+
                     Console.WriteLine();
                 }
+
+                Console.WriteLine($"=== Прочитано записей: {recordCount} =============\n");
             }
         }
 
         // -------------------------------------------------
         // Анализ конкретных адресов в записи
         // -------------------------------------------------
-        static void AnalyzeSpecificAddresses(byte[] record)
+        static void AnalyzeSpecificAddresses(byte[] record, bool showlog = false)
         {
             //Console.WriteLine("--- Анализ конкретных адресов ---");
 
@@ -216,7 +308,7 @@ namespace DeepRpbAnalyzer
 
 
 
-            if (isFolder == 0)
+            if (isFolder == 0 && showlog)
             {
                 Console.WriteLine($"0x0000 FPS : {fps}");
                 Console.WriteLine($"0x0004 screenmode : {screenmode}");
@@ -242,7 +334,7 @@ namespace DeepRpbAnalyzer
 
             Console.WriteLine($"0x13F0 Имя : {name}");
 
-            if (isFolder == 0)
+            if (isFolder == 0 && showlog)
             {
                 Console.WriteLine($"0x14B8 Порт: {port} (0x{port:X8})");
                 Console.WriteLine();
@@ -253,7 +345,7 @@ namespace DeepRpbAnalyzer
 
             Console.WriteLine();
             Console.WriteLine($"0x17E0 Уникальный номер записи: {uniqueId} (0x{uniqueId:X8})");
-            if (isFolder == 0)
+            if (isFolder == 0 && showlog)
             {
                 Console.WriteLine($"0x17E4 Номер записи промежуточного сервера: {interServer} (0x{interServer:X8})");
             }
@@ -324,8 +416,8 @@ namespace DeepRpbAnalyzer
             rec.VoiceCont = ReadUtf16String(record, 0x00D8);
             rec.UserText = ReadUtf16String(record, 0x04D8);
             rec.TextCont = ReadUtf16String(record, 0x0518);
-            rec.Unknown3 = BitConverter.ToUInt32(record, 0x0918);      
-            rec.Unknown4 = BitConverter.ToUInt32(record, 0x091C);      
+            rec.Unknown3 = BitConverter.ToUInt32(record, 0x0918);
+            rec.Unknown4 = BitConverter.ToUInt32(record, 0x091C);
             rec.Unknown5 = BitConverter.ToUInt32(record, 0x0920);
             rec.Ip = ReadUtf16String(record, 0x1328);
             rec.Name = ReadUtf16String(record, 0x13F0);
@@ -395,7 +487,7 @@ namespace DeepRpbAnalyzer
                         ParentId = item.ParentId,
                         IsFolder = item.IsFolder,
                         Number = item.Number,
-                        Children = item.Children.Count > 0 ? CreateSimplifiedStructure(item.Children) : null
+                        Records = item.Children.Count > 0 ? CreateSimplifiedStructure(item.Children) : null
                     };
                     result.Add(folder);
                 }
@@ -416,7 +508,7 @@ namespace DeepRpbAnalyzer
                         MaxFps = item.MaxFps,
                         ScreenMode = item.ScreenMode,
                         ColorMode = item.ColorMode,
-                        
+
                         UseSpeckey = item.UseSpeckey,
                         CursorMode = item.CursorMode,
                         Unknown1 = item.Unknown1,
@@ -487,6 +579,321 @@ namespace DeepRpbAnalyzer
         }
 
 
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Рекурсивно собираем все записи в плоский список
+        // Обновленный метод импорта
+        static void ImportFromJson(string inputFile, string outputFile)
+        {
+            string json = File.ReadAllText(inputFile, Encoding.UTF8);
+            var serializer = new JavaScriptSerializer();
+            serializer.MaxJsonLength = int.MaxValue;
 
+            var jsonOutput = serializer.Deserialize<JsonOutput>(json);
+
+            if (jsonOutput == null)
+            {
+                throw new Exception("Неверный формат JSON файла");
+            }
+
+            // Преобразуем List<object> в List<Record>
+            var records = ConvertObjectsToRecords(jsonOutput.Records);
+
+            CreateRpbFromJson(jsonOutput, records, outputFile);
+        }
+
+        // Преобразуем List<object> в List<Record> с заполнением всех полей
+        static List<Record> ConvertObjectsToRecords(List<object> objects)
+        {
+            var records = new List<Record>();
+
+            foreach (var obj in objects)
+            {
+                var record = ConvertObjectToRecord(obj);
+                if (record != null)
+                {
+                    records.Add(record);
+                }
+            }
+
+            return records;
+        }
+
+        // Рекурсивно преобразуем object в Record с заполнением всех полей
+        static Record ConvertObjectToRecord(object obj)
+        {
+            if (obj == null) return null;
+
+            var dict = obj as Dictionary<string, object>;
+            if (dict == null) return null;
+
+            var record = new Record();
+
+            // Заполняем основные поля (всегда присутствуют)
+            record.Name = GetStringValue(dict, "Name");
+            record.UniqueId = GetUIntValue(dict, "UniqueId");
+            record.ParentId = GetUIntValue(dict, "ParentId");
+            record.IsFolder = (ushort)GetUIntValue(dict, "IsFolder");
+            record.Number = GetUIntValue(dict, "Number");
+
+            // InterServer может быть как у папок, так и у элементов
+            record.InterServer = GetUIntValue(dict, "InterServer");
+
+            // Заполняем поля для элементов (даже если это папка - заполняем нулями)
+            record.MaxFps = GetUIntValue(dict, "MaxFps");
+            record.ScreenMode = GetUIntValue(dict, "ScreenMode");
+            record.ColorMode = GetUIntValue(dict, "ColorMode");
+            record.UseSpeckey = GetUIntValue(dict, "UseSpeckey");
+            record.CursorMode = GetUIntValue(dict, "CursorMode");
+            if (record.IsFolder == 1)
+            {
+                record.Unknown1 = 0;
+                record.Unknown2 = 0;
+                record.Unknown3 = 0;
+                record.Unknown4 = 0;
+                record.Unknown5 = 0;
+            }
+            else
+            {
+                record.Unknown1 = GetUIntValue(dict, "Unknown1", 1);
+                record.Unknown2 = GetUIntValue(dict, "Unknown2", 1);
+                record.Unknown3 = GetUIntValue(dict, "Unknown3", 2);
+                record.Unknown4 = GetUIntValue(dict, "Unknown4", 2);
+                record.Unknown5 = GetUIntValue(dict, "Unknown5", 3);
+            }
+            record.VoiceTune = GetUIntValue(dict, "VoiceTune");
+            record.UserVoice = GetStringValue(dict, "UserVoice");
+            record.VoiceCont = GetStringValue(dict, "VoiceCont");
+            record.UserText = GetStringValue(dict, "UserText");
+            record.TextCont = GetStringValue(dict, "TextCont");
+
+            record.Ip = GetStringValue(dict, "Ip");
+            record.Port = GetUIntValue(dict, "Port");
+            record.Kerb = GetStringValue(dict, "Kerb");
+            record.LoginUser = GetStringValue(dict, "LoginUser");
+            record.KerbOn = GetUIntValue(dict, "KerbOn");
+
+            // Рекурсивно обрабатываем детей
+            if (dict.ContainsKey("Records") && dict["Records"] != null)
+            {
+                object childrenObj = dict["Records"];
+                var childrenObjects = ((object[])childrenObj).ToList();
+                if (childrenObjects != null)
+                {
+                    foreach (var childObj in childrenObjects)
+                    {
+                        var childRecord = ConvertObjectToRecord(childObj);
+                        if (childRecord != null)
+                        {
+                            record.Children.Add(childRecord);
+                        }
+                    }
+                }
+            }
+
+            return record;
+        }
+
+        // Рекурсивно собираем все записи в плоский список
+        static List<Record> FlattenRecords(List<Record> records)
+        {
+            var result = new List<Record>();
+
+            foreach (var record in records)
+            {
+                result.Add(record);
+
+                // Рекурсивно обрабатываем детей
+                if (record.Children != null && record.Children.Count > 0)
+                {
+                    result.AddRange(FlattenRecords(record.Children));
+                }
+            }
+
+            return result;
+        }
+
+        // Обновленный метод создания RPB
+        static void CreateRpbFromJson(JsonOutput jsonOutput, List<Record> records, string outputPath)
+        {
+            FileHeader header = jsonOutput.Header;
+
+            using (var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
+            using (var bw = new BinaryWriter(fs))
+            {
+                // Собираем все записи в плоский список
+                var allRecords = FlattenRecords(records);
+                var recSize = 0;
+                if (header != null)
+                {
+                    // Записываем заголовок
+                    bw.Write(header.Version);
+                    bw.Write(header.ChksumRecCounts);
+
+                    uint timestamp = HMSToMilliseconds(header.SaveTick);
+                    bw.Write((int)timestamp);
+                    recSize = header.RecordSize;
+                    bw.Write(recSize);
+                    bw.Write(header.StartSize);
+                    bw.Write(header.RecordCount - 1);
+                    bw.Write((byte)header.StartByte);
+                    bw.Write(header.RecordsBytes);
+                } 
+                else
+                {
+                    // Записываем заголовок
+                    bw.Write(4);
+                    bw.Write(allRecords.Count*3+1);
+
+                    uint timestamp = (uint)Environment.TickCount;
+                    bw.Write((int)timestamp);
+                    recSize = 6138;
+                    bw.Write(recSize);
+                    bw.Write(128);
+                    bw.Write(allRecords.Count - 1);
+                    bw.Write((byte)1); 
+                    bw.Write(CreateBytesArrayFilledWithOnes(allRecords.Count));
+                }
+
+                // Записываем записи
+                foreach (var record in allRecords)
+                {
+                    WriteRecord(bw, record, recSize);
+                }
+            }
+        }
+        static byte[] CreateBytesArrayFilledWithOnes(int count)
+        {
+            if (count > 128) count = 128;
+
+            byte[] array = new byte[128];
+            for (int i = 0; i < count; i++)
+            {
+                array[i] = 0x01; // Заполняем только первые 'count' байт
+            }
+            // Остальные байты остаются 0x00
+            return array;
+        }
+        // Запись Record в бинарный формат
+        static void WriteRecord(BinaryWriter bw, Record record, int recordSize)
+        {
+            byte[] buffer = new byte[recordSize];
+
+            WriteUInt32ToBuffer(buffer, 0x0000, record.MaxFps);
+            WriteUInt32ToBuffer(buffer, 0x0004, record.ScreenMode);
+            WriteUInt32ToBuffer(buffer, 0x0008, record.ColorMode);
+            WriteUInt32ToBuffer(buffer, 0x000C, record.UseSpeckey);
+            WriteUInt32ToBuffer(buffer, 0x0018, record.CursorMode);
+            WriteUInt32ToBuffer(buffer, 0x001C, record.Unknown1);
+            WriteUInt32ToBuffer(buffer, 0x008C, record.Unknown2);
+            WriteUInt32ToBuffer(buffer, 0x0094, record.VoiceTune);
+
+            WriteUtf16StringToBuffer(buffer, 0x0098, record.UserVoice);
+            WriteUtf16StringToBuffer(buffer, 0x00D8, record.VoiceCont);
+            WriteUtf16StringToBuffer(buffer, 0x04D8, record.UserText);
+            WriteUtf16StringToBuffer(buffer, 0x0518, record.TextCont);
+
+            WriteUInt32ToBuffer(buffer, 0x0918, record.Unknown3);
+            WriteUInt32ToBuffer(buffer, 0x091C, record.Unknown4);
+            WriteUInt32ToBuffer(buffer, 0x0920, record.Unknown5);
+
+            WriteUtf16StringToBuffer(buffer, 0x1328, record.Ip);
+            WriteUtf16StringToBuffer(buffer, 0x13F0, record.Name);
+
+            WriteUInt32ToBuffer(buffer, 0x14B8, record.Port);
+
+            WriteUtf16StringToBuffer(buffer, 0x164C, record.Kerb);
+            WriteUtf16StringToBuffer(buffer, 0x1714, record.LoginUser);
+
+            WriteUInt16ToBuffer(buffer, 0x17DC, (ushort)record.KerbOn);
+            WriteUInt32ToBuffer(buffer, 0x17E0, record.UniqueId);
+            WriteUInt32ToBuffer(buffer, 0x17E4, record.InterServer);
+            WriteUInt32ToBuffer(buffer, 0x17E8, record.ParentId);
+            WriteUInt16ToBuffer(buffer, 0x17EC, record.IsFolder);
+            WriteUInt32ToBuffer(buffer, 0x17EE, record.Number);
+
+            bw.Write(buffer);
+        }
+
+        // Вспомогательные методы для записи данных в буфер
+        static void WriteUInt32ToBuffer(byte[] buffer, int offset, uint value)
+        {
+            byte[] bytes = BitConverter.GetBytes(value);
+            Array.Copy(bytes, 0, buffer, offset, 4);
+        }
+
+        static void WriteUInt16ToBuffer(byte[] buffer, int offset, ushort value)
+        {
+            byte[] bytes = BitConverter.GetBytes(value);
+            Array.Copy(bytes, 0, buffer, offset, 2);
+        }
+
+        static void WriteUtf16StringToBuffer(byte[] buffer, int offset, string value, int maxLength = 0)
+        {
+            if (string.IsNullOrEmpty(value))
+                return;
+
+            byte[] stringBytes = Encoding.Unicode.GetBytes(value);
+            //int copyLength = Math.Min(stringBytes.Length, maxLength * 2);
+            Array.Copy(stringBytes, 0, buffer, offset, stringBytes.Length);
+        }
+
+        // Вспомогательные методы для извлечения значений из Dictionary
+        static uint GetUIntValue(Dictionary<string, object> dict, string key, uint defReturn = 0)
+        {
+            if (dict.ContainsKey(key) && dict[key] != null)
+            {
+                try
+                {
+                    if (dict[key] is int) return (uint)(int)dict[key];
+                    if (dict[key] is long) return (uint)(long)dict[key];
+                    return Convert.ToUInt32(dict[key]);
+                }
+                catch
+                {
+                    return defReturn; // Если не удалось преобразовать, возвращаем 0
+                }
+            }
+            return defReturn;
+        }
+
+        static string GetStringValue(Dictionary<string, object> dict, string key)
+        {
+            if (dict.ContainsKey(key) && dict[key] != null)
+            {
+                return dict[key].ToString();
+            }
+            return string.Empty;
+        }
+
+        // Преобразование HMS формата обратно в миллисекунды
+        static uint HMSToMilliseconds(string hms)
+        {
+            try
+            {
+                string[] parts = hms.Split(':');
+                if (parts.Length == 3)
+                {
+                    long hours = long.Parse(parts[0]);
+                    long minutes = long.Parse(parts[1]);
+                    long seconds = long.Parse(parts[2]);
+
+                    // Проверяем на переполнение
+                    long totalMilliseconds = (hours * 3600L + minutes * 60L + seconds) * 1000L;
+
+                    if (totalMilliseconds > uint.MaxValue)
+                    {
+                        Console.WriteLine($"Предупреждение: timestamp {totalMilliseconds} превышает максимальное значение uint, используется максимум");
+                        return uint.MaxValue;
+                    }
+
+                    return (uint)totalMilliseconds;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка преобразования времени: {ex.Message}");
+            }
+            return 0;
+        }
     }
 }

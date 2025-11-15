@@ -45,5 +45,13 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TimestampConverter.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Rrp_Json2Rpb.bat">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Rrp_Rpb2Json.bat">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
