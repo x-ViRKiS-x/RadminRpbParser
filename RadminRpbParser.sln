@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36603.0 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RadminRpbParser", "RadminRpbParser.csproj", "{89C9DEAD-EA70-49C0-B988-1B53E70C1C2B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{89C9DEAD-EA70-49C0-B988-1B53E70C1C2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89C9DEAD-EA70-49C0-B988-1B53E70C1C2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89C9DEAD-EA70-49C0-B988-1B53E70C1C2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89C9DEAD-EA70-49C0-B988-1B53E70C1C2B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3ED4FD49-9FDC-4A66-8402-A20F109373CA}
+	EndGlobalSection
+EndGlobal
