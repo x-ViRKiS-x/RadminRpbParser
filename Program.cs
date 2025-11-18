@@ -723,23 +723,23 @@ namespace DeepRpbAnalyzer
                 // Собираем все записи в плоский список
                 var allRecords = FlattenRecords(records);
                 var recSize = 0;
-                if (header != null)
-                {
-                    // Записываем заголовок
-                    bw.Write(header.Version);
-                    bw.Write(header.ChksumRecCounts);
+                //if (header != null)
+                //{
+                //    // Записываем заголовок
+                //    bw.Write(header.Version);
+                //    bw.Write(header.ChksumRecCounts);
 
-                    uint timestamp = HMSToMilliseconds(header.SaveTick);
-                    bw.Write((int)timestamp);
-                    recSize = header.RecordSize;
-                    bw.Write(recSize);
-                    bw.Write(header.StartSize);
-                    bw.Write(header.RecordCount - 1);
-                    bw.Write((byte)header.StartByte);
-                    bw.Write(header.RecordsBytes);
-                } 
-                else
-                {
+                //    uint timestamp = HMSToMilliseconds(header.SaveTick);
+                //    bw.Write((int)timestamp);
+                //    recSize = header.RecordSize;
+                //    bw.Write(recSize);
+                //    bw.Write(header.StartSize);
+                //    bw.Write(header.RecordCount - 1);
+                //    bw.Write((byte)header.StartByte);
+                //    bw.Write(header.RecordsBytes);
+                //} 
+                //else
+                //{
                     // Записываем заголовок
                     bw.Write(4);
                     bw.Write(allRecords.Count*3+1);
@@ -752,7 +752,7 @@ namespace DeepRpbAnalyzer
                     bw.Write(allRecords.Count - 1);
                     bw.Write((byte)1); 
                     bw.Write(CreateBytesArrayFilledWithOnes(allRecords.Count));
-                }
+                //}
 
                 // Записываем записи
                 foreach (var record in allRecords)
