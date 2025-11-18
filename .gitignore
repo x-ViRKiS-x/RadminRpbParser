@@ -362,3 +362,8 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 *.docx
+/RpbParser.jpg
+/RpbParser.psd
+/RpbParser1.jpg
+/RpbParser2.jpg
+/RpbParser3.jpg
